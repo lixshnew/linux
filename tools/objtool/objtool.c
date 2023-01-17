@@ -24,6 +24,7 @@
 #include "builtin.h"
 #include "objtool.h"
 #include "warn.h"
+#include "check.h"
 
 struct cmd_struct {
 	const char *name;

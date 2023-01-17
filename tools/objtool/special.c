@@ -87,14 +87,20 @@ static int get_alt_entry(struct elf *elf, struct special_entry *entry,
 		WARN_FUNC("can't find orig reloc", sec, offset + entry->orig);
 		return -1;
 	}
-	if (orig_reloc->sym->type != STT_SECTION) {
+	if (orig_reloc->sym->type == STT_SECTION) {
+		alt->orig_sec = orig_reloc->sym->sec;
+		alt->orig_off = orig_reloc->addend;
+#ifdef __loongarch__
+	} else if (!strncmp(orig_reloc->sym->name, ".L", 2) ||
+			!strncmp(orig_reloc->sym->name, ".ex", 3)) {
+		alt->orig_sec = orig_reloc->sym->sec;
+		alt->orig_off = orig_reloc->sym->offset;
+#endif
+	} else {
 		WARN_FUNC("don't know how to handle non-section reloc symbol %s",
 			   sec, offset + entry->orig, orig_reloc->sym->name);
 		return -1;
 	}
-
-	alt->orig_sec = orig_reloc->sym->sec;
-	alt->orig_off = orig_reloc->addend;
 
 	if (!entry->group || alt->new_len) {
 		new_reloc = find_reloc_by_dest(elf, sec, offset + entry->new);
@@ -105,7 +111,12 @@ static int get_alt_entry(struct elf *elf, struct special_entry *entry,
 		}
 
 		alt->new_sec = new_reloc->sym->sec;
-		alt->new_off = (unsigned int)new_reloc->addend;
+#ifdef __loongarch__
+		if (!strncmp(orig_reloc->sym->name, ".L", 2))
+			alt->new_off = new_reloc->sym->offset;
+		else
+#endif
+			alt->new_off = (unsigned int)new_reloc->addend;
 
 		/* _ASM_EXTABLE_EX hack */
 		if (alt->new_off >= 0x7ffffff0)

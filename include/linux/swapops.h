@@ -272,7 +272,11 @@ static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
 
 static inline int is_pmd_migration_entry(pmd_t pmd)
 {
+#ifdef CONFIG_LOONGARCH
+	return is_swap_pmd(pmd) && is_migration_entry(pmd_to_swp_entry(pmd));
+#else
 	return !pmd_present(pmd) && is_migration_entry(pmd_to_swp_entry(pmd));
+#endif
 }
 #else
 static inline void set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,

@@ -193,6 +193,13 @@ config EP93XX_DMA
 	help
 	  Enable support for the Cirrus Logic EP93xx M2P/M2M DMA controller.
 
+config LS_APBDMAC
+	tristate "Loongson APB DMA support"
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support the Loongson APB DMA controller.
+
 config FSL_DMA
 	tristate "Freescale Elo series DMA support"
 	depends on FSL_SOC

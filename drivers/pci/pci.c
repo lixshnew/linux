@@ -28,6 +28,7 @@
 #include <linux/device.h>
 #include <linux/pm_runtime.h>
 #include <linux/pci_hotplug.h>
+#include <linux/suspend.h>
 #include <linux/vmalloc.h>
 #include <asm/dma.h>
 #include <linux/aer.h>
@@ -5725,6 +5726,13 @@ int pcie_set_readrq(struct pci_dev *dev, int rq)
 	}
 
 	v = (ffs(rq) - 8) << 12;
+
+	/* MRRS should be restored during resume. */
+	if (pm_suspend_target_state == PM_SUSPEND_ON &&
+		dev->dev_flags & PCI_DEV_FLAGS_NO_INCREASE_MRRS) {
+		if (rq > pcie_get_readrq(dev))
+			return -EINVAL;
+	}
 
 	ret = pcie_capability_clear_and_set_word(dev, PCI_EXP_DEVCTL,
 						  PCI_EXP_DEVCTL_READRQ, v);

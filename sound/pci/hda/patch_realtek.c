@@ -25,6 +25,7 @@
 #include "hda_auto_parser.h"
 #include "hda_jack.h"
 #include "hda_generic.h"
+#include "hda_controller.h"
 
 /* keep halting ALC5505 DSP, for power saving */
 #define HALT_REALTEK_ALC5505
@@ -294,6 +295,13 @@ static void alc_fixup_micmute_led(struct hda_codec *codec,
 {
 	if (action == HDA_FIXUP_ACT_PROBE)
 		snd_hda_gen_add_micmute_led_cdev(codec, NULL);
+}
+
+int has_loongson_workaround(struct hda_codec *codec)
+{
+	struct azx *chip = bus_to_azx(&codec->bus->core);
+
+	return chip->driver_caps & AZX_DCAPS_LS2X_WORKAROUND;
 }
 
 /*
@@ -629,10 +637,10 @@ static int alc_auto_parse_customize_define(struct hda_codec *codec)
 		goto do_sku;
 	}
 
-	if (!codec->bus->pci)
+	if (!codec->bus->pci && !has_loongson_workaround(codec))
 		return -1;
 	ass = codec->core.subsystem_id & 0xffff;
-	if (ass != codec->bus->pci->subsystem_device && (ass & 1))
+	if (codec->bus->pci && ass != codec->bus->pci->subsystem_device && (ass & 1))
 		goto do_sku;
 
 	nid = 0x1d;
@@ -6366,6 +6374,8 @@ enum {
 	ALC287_FIXUP_HP_GPIO_LED,
 	ALC256_FIXUP_HP_HEADSET_MIC,
 	ALC236_FIXUP_DELL_AIO_HEADSET_MIC,
+	ALC269_FIXUP_LS2K1000_JL,
+	ALC269_FIXUP_LS2K500_HL,
 };
 
 static const struct hda_fixup alc269_fixups[] = {
@@ -7789,6 +7799,32 @@ static const struct hda_fixup alc269_fixups[] = {
 		.chained = true,
 		.chain_id = ALC255_FIXUP_DELL1_MIC_NO_PRESENCE
 	},
+	[ALC269_FIXUP_LS2K1000_JL] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = (const struct hda_pintbl[]) {
+			{ 0x15, 0x01214030 }, /* hp-out */
+			{ 0x18, 0x01a19020 }, /* mic1 */
+			{ 0x19, 0x41a39140 }, /* mic2 */
+			{ 0x14, 0x59130150 }, /* speaker */
+			{ 0x1a, 0x59030160 }, /* line1 */
+			{ 0x1b, 0x59030170 }, /* line2 */
+			{ 0x1e, 0x98400180 }, /* SPDIF1 */
+			{ }
+		},
+	},
+	[ALC269_FIXUP_LS2K500_HL] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = (const struct hda_pintbl[]) {
+			{ 0x15, 0x01214030 }, /* hp-out */
+			{ 0x18, 0x01a19020 }, /* mic1 */
+			{ 0x19, 0x41a39140 }, /* mic2 */
+			{ 0x14, 0x59130150 }, /* speaker */
+			{ 0x1a, 0x59030160 }, /* line1 */
+			{ 0x1b, 0x59030170 }, /* line2 */
+			{ 0x1e, 0x58400180 }, /* SPDIF1 */
+			{ }
+		},
+	},
 };
 
 static const struct snd_pci_quirk alc269_fixup_tbl[] = {
@@ -8313,6 +8349,8 @@ static const struct hda_model_fixup alc269_fixup_models[] = {
 	{.id = ALC298_FIXUP_SAMSUNG_HEADPHONE_VERY_QUIET, .name = "alc298-samsung-headphone"},
 	{.id = ALC255_FIXUP_XIAOMI_HEADSET_MIC, .name = "alc255-xiaomi-headset"},
 	{.id = ALC274_FIXUP_HP_MIC, .name = "alc274-hp-mic-detect"},
+	{.id = ALC269_FIXUP_LS2K1000_JL, .name = "alc269-ls2k1000-jl"},
+	{.id = ALC269_FIXUP_LS2K500_HL, .name = "alc269-ls2k500-hl"},
 	{}
 };
 #define ALC225_STANDARD_PINS \

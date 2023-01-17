@@ -21,7 +21,13 @@ ifdef CONFIG_UNWINDER_ORC
 ifeq ($(ARCH),x86_64)
 ARCH := x86
 endif
-HOSTCFLAGS_sorttable.o += -I$(srctree)/tools/arch/x86/include
+
+# Additional ARCH settings for loongarch
+ifeq ($(ARCH),loongarch64)
+ARCH := loongarch
+endif
+
+HOSTCFLAGS_sorttable.o += -I$(srctree)/tools/arch/$(ARCH)/include
 HOSTCFLAGS_sorttable.o += -DUNWINDER_ORC_ENABLED
 HOSTLDLIBS_sorttable = -lpthread
 endif

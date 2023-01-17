@@ -74,7 +74,7 @@ static pgprot_t drm_io_prot(struct drm_local_map *map,
 	tmp = pgprot_decrypted(tmp);
 
 #if defined(__i386__) || defined(__x86_64__) || defined(__powerpc__) || \
-    defined(__mips__)
+	defined(__mips__) || defined(__loongarch__)
 	if (map->type == _DRM_REGISTERS && !(map->flags & _DRM_WRITE_COMBINING))
 		tmp = pgprot_noncached(tmp);
 	else
@@ -397,7 +397,7 @@ static void drm_vm_open_locked(struct drm_device *dev,
 	struct drm_vma_entry *vma_entry;
 
 	DRM_DEBUG("0x%08lx,0x%08lx\n",
-		  vma->vm_start, vma->vm_end - vma->vm_start);
+		vma->vm_start, vma->vm_end - vma->vm_start);
 
 	vma_entry = kmalloc(sizeof(*vma_entry), GFP_KERNEL);
 	if (vma_entry) {

@@ -1,0 +1,830 @@
+/dts-v1/;
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/clock/loongson2k1000-clock.h>
+
+/ {
+	model = "loongson-2k1000";
+	compatible = "loongson,ls2k";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	aliases {
+		ethernet0 = &gmac0;
+		ethernet1 = &gmac1;
+		serial0 = &cpu_uart0;
+		serial3 = &uart3;
+		serial4 = &uart4;
+		serial5 = &uart5;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+		bootargs = "earlycon";
+	};
+
+/*
+	memory {
+		name = "memory";
+		device_type = "memory";
+		reg =  <0 0x00200000 0 0x0ee00000
+			0 0x90000000 1 0xe0000000>;
+	};
+*/
+	// reserved-memory {
+	// 	#address-cells = <2>;
+	// 	#size-cells = <2>;
+	// 	ranges;
+
+	// 	linux,cma {
+	// 		compatible = "shared-dma-pool";
+	// 		reusable;
+	// 		size = <0 0x2000000>;
+	// 		linux,cma-default;
+	// 	};
+	// };
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "loongarch";
+			reg=<0>;
+			numa-node-id = <0>;
+		};
+
+		cpu1: cpu@1 {
+			device_type = "cpu";
+			compatible = "loongarch";
+			reg=<1>;
+			numa-node-id = <0>;
+		};
+	};
+
+	cpuic: interrupt-controller {
+		compatible = "loongson,cpu-interrupt-controller";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+	};
+
+	icu: interrupt-controller@1fe01400 {
+		compatible = "loongson,2k1000-icu";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		reg = <0 0x1fe01400 0 0x40
+			0 0x1fe01040 0 16>;
+		interrupt-parent = <&cpuic>;
+		interrupt-names = "cascade";
+		interrupts = <3>; /* HW IP1 */
+	};
+
+	soc {
+		compatible = "ls,nbus", "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges = <0 0x10000000 0 0x10000000 0 0x10000000
+			0 0x2000000  0 0x2000000  0 0x2000000
+			0 0x20000000 0 0x20000000 0 0x10000000
+			0 0x40000000 0 0x40000000 0 0x40000000
+			0xfe 0x00000000 0xfe 0x00000000 0 0x40000000>;
+
+		dma-coherent;
+
+		osc_clk: osc-clock {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <100000000>;
+			clock-output-names = "ref_clk";
+		};
+
+		clks: clock-controller@1fe00480 {
+			compatible = "loongson,ls2x-clk";
+			reg = <0 0x1fe00480 0 1>;
+			clocks = <&osc_clk>;
+			clock-names = "ref_clk";
+			#clock-cells = <1>;
+		};
+
+		pctrl:pinctrl@1fe00420 {
+			compatible = "loongson,2k1000-pinctrl";
+			reg = <0 0x1fe00420 0 0x18>;
+
+			gmac1_default:gmac1 {
+				mux {
+					groups ="gmac1";
+					function ="gmac1";
+				};
+			};
+
+			hda_default:hda {
+				mux {
+					groups ="hda_i2s";
+					function ="hda";
+				};
+			};
+
+			i2s_default:i2s {
+				mux {
+					groups ="hda_i2s";
+					function ="i2s";
+				};
+			};
+
+			ahci_default:ahci {
+				mux {
+					groups ="sata_led";
+					function ="sata_led";
+				};
+			};
+
+			pwm0_default:pwm0 {
+				mux {
+					groups ="pwm0";
+					function ="pwm0";
+				};
+			};
+
+			pwm1_default:pwm1 {
+				mux {
+					groups ="pwm1";
+					function ="pwm1";
+				};
+			};
+
+			pwm2_default:pwm2 {
+				mux {
+					groups ="pwm2";
+					function ="pwm2";
+				};
+			};
+
+			pwm3_default:pwm3 {
+				mux {
+					groups ="pwm3";
+					function ="pwm3";
+				};
+			};
+
+			uart0_4_default:uart0_4{
+				mux {
+					groups = "uart0";
+					function = "uart0_4";
+				};
+			};
+
+			uart1_4_default:uart1_4 {
+				mux {
+					groups = "uart1";
+					function = "uart1_4";
+				};
+			};
+
+			uart2_4_default:uart2_4 {
+				mux {
+					groups = "uart2";
+					function = "uart2_4";
+				};
+			};
+
+			dvo0_default:dvo0 {
+				mux {
+					groups = "dvo0_lio_uart";
+					function = "dvo0";
+				};
+			};
+
+			dvo1_default:dvo1 {
+				mux {
+					groups = "dvo1_camera";
+					function = "dvo1";
+				};
+			};
+
+			can0_default:can0 {
+				mux {
+					groups = "can0";
+					function = "can0";
+				};
+			};
+
+			can1_default:can1 {
+				mux {
+					groups = "can1";
+					function = "can1";
+				};
+			};
+		};
+
+		cpu_uart0: serial@0x1fe20000 {
+			compatible = "ns16550a";
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart0_4_default>;
+			reg = <0 0x1fe20000 0 0x10>;
+			clocks = <&clks CLK_UART>;
+			interrupt-parent = <&icu>;
+			interrupts = <0>;
+			no-loopback-test;
+			status = "okay";
+		};
+
+		uart1: serial@0x1fe20100 {
+			compatible = "ns16550a";
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart1_4_default>;
+			reg = <0 0x1fe20100 0 0x10>;
+			clocks = <&clks CLK_UART>;
+			interrupt-parent = <&icu>;
+			interrupts = <0>;
+			no-loopback-test;
+			status = "disable";
+		};
+
+		uart2: serial@0x1fe20200 {
+			compatible = "ns16550a";
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart2_4_default>;
+			reg = <0 0x1fe20200 0 0x10>;
+			clocks = <&clks CLK_UART>;
+			interrupt-parent = <&icu>;
+			interrupts = <0>;
+			no-loopback-test;
+			status = "disable";
+		};
+
+		uart3: serial@0x1fe20300 {
+			compatible = "ns16550a";
+			reg = <0 0x1fe20300 0 0x10>;
+			clocks = <&clks CLK_UART>;
+			interrupt-parent = <&icu>;
+			interrupts = <0>;
+			no-loopback-test;
+		};
+
+		uart4: serial@0x1fe20400 {
+			compatible = "ns16550a";
+			reg = <0 0x1fe20400 0 0x10>;
+			clocks = <&clks CLK_UART>;
+			interrupt-parent = <&icu>;
+			interrupts = <1>;
+			no-loopback-test;
+		};
+
+		uart5: serial@0x1fe20500 {
+			compatible = "ns16550a";
+			reg = <0 0x1fe20500 0 0x10>;
+			clocks = <&clks CLK_UART>;
+			interrupt-parent = <&icu>;
+			interrupts = <1>;
+			no-loopback-test;
+		};
+
+		uart6: serial@0x1fe20600 {
+			compatible = "ns16550a";
+			reg = <0 0x1fe20600 0 0x10>;
+			clocks = <&clks CLK_UART>;
+			interrupt-parent = <&icu>;
+			interrupts = <1>;
+			no-loopback-test;
+			status = "disable";
+		};
+
+		uart7: serial@0x1fe20700 {
+			compatible = "ns16550a";
+			reg = <0 0x1fe20700 0 0x10>;
+			clocks = <&clks CLK_UART>;
+			interrupt-parent = <&icu>;
+			interrupts = <1>;
+			no-loopback-test;
+			status = "disable";
+		};
+
+		uart8: serial@0x1fe20800 {
+			compatible = "ns16550a";
+			reg = <0 0x1fe20800 0 0x10>;
+			clocks = <&clks CLK_UART>;
+			interrupt-parent = <&icu>;
+			interrupts = <2>;
+			no-loopback-test;
+			status = "disable";
+		};
+
+		uart9: serial@0x1fe20900 {
+			compatible = "ns16550a";
+			reg = <0 0x1fe20900 0 0x10>;
+			clocks = <&clks CLK_UART>;
+			interrupt-parent = <&icu>;
+			interrupts = <2>;
+			no-loopback-test;
+			status = "disable";
+		};
+
+		uart10: serial@0x1fe20a00 {
+			compatible = "ns16550a";
+			reg = <0 0x1fe20a00 0 0x10>;
+			clocks = <&clks CLK_UART>;
+			interrupt-parent = <&icu>;
+			interrupts = <2>;
+			no-loopback-test;
+			status = "disable";
+		};
+
+		uart11: serial@0x1fe20b00 {
+			compatible = "ns16550a";
+			reg = <0 0x1fe20b00 0 0x10>;
+			clocks = <&clks CLK_UART>;
+			interrupt-parent = <&icu>;
+			interrupts = <2>;
+			no-loopback-test;
+			status = "disable";
+		};
+
+		pioA:gpio@0x1fe00500 {
+			compatible = "loongson,loongson3-gpio";
+			reg = <0 0x1fe00500 0 0x38>;
+			ngpios = <64>;
+			gpio_base = <0>;
+			conf_offset = <0>;
+			out_offset = <0x10>;
+			in_offset = <0x20>;
+			int_offset = <0x30>;
+			in_start_bit = <0>;
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			support_irq;
+			interrupt-parent = <&icu>;
+			interrupts =
+				<60>, <61>, <62>, <63>, <58>, <58>,
+				<58>, <58>, <58>, <58>, <58>, <58>,
+				<58>, <58>, <58>, <>,   <58>, <58>,
+				<58>, <58>, <58>, <58>, <58>, <58>,
+				<58>, <58>, <58>, <58>, <58>, <58>,
+				<58>, <58>, <59>, <59>, <59>, <59>,
+				<59>, <>,   <59>, <59>, <59>, <59>,
+				<>,   <>,   <59>, <59>, <59>, <59>,
+				<59>, <59>, <59>, <59>, <59>, <59>,
+				<59>, <59>, <59>, <59>, <59>, <59>,
+				<59>, <59>, <59>, <59>;
+		};
+
+		pmc: syscon@0x1fe27000 {
+			compatible = "syscon";
+			reg = <0x0 0x1fe27000 0x0 0x58>;
+		};
+
+		reboot {
+			compatible ="syscon-reboot";
+			regmap = <&pmc>;
+			offset = <0x30>;
+			mask = <0x1>;
+		};
+
+		poweroff {
+			compatible ="syscon-poweroff";
+			regmap = <&pmc>;
+			offset = <0x14>;
+			mask = <0x3c00>;
+			value = <0x3c00>;
+		};
+
+		otg: otg@40000000 {
+			compatible = "loongson,dwc2-otg";
+			reg = <0 0x40000000 0 0x40000>;
+			interrupt-parent = <&icu>;
+			interrupts = <49>;
+			dma-mask = <0x0 0xffffffff>;
+			status = "disabled";
+		};
+
+		ohci@40070000 {
+			compatible = "loongson,ls2k-ohci", "generic-ohci";
+			reg = <0 0x40070000 0 0x8000>;
+			interrupt-parent = <&icu>;
+			interrupts = <51>;
+			dma-mask = <0x0 0xffffffff>;
+		};
+
+		ehci@40060000 {
+			compatible = "loongson,ls2k-ehci", "generic-ehci";
+			reg = <0 0x40060000 0 0x8000>;
+			interrupt-parent = <&icu>;
+			interrupts = <50>;
+			/* enable 64 bits dma-mask nedd setting 0x1fe00420 |= 1 << 36*/
+			dma-mask = <0 0xffffffff>;
+		};
+
+		i2c0: i2c@1fe21000 {
+			compatible = "loongson,ls-i2c";
+			reg = <0 0x1fe21000 0 0x8>;
+			interrupt-parent = <&icu>;
+			interrupts = <22>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@1fe21800 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			compatible = "loongson,ls-i2c";
+			reg = <0 0x1fe21800 0 0x8>;
+			interrupt-parent = <&icu>;
+			interrupts = <23>;
+
+			status = "disabled";
+		};
+
+		dc: dc@400c0000 {
+			compatible = "loongson,ls2k1000-dc";
+			reg = <0 0x400c0000 0 0x00010000>;
+			interrupt-parent = <&icu>;
+			interrupts = <28>;
+			dma-mask = <0x00000000 0xffffffff>;
+			status = "disabled";
+		};
+
+		gpu@40080000 {
+			compatible = "vivante,gc";
+			reg = <0 0x40080000 0 0x00040000>;
+			interrupt-parent = <&icu>;
+			interrupts = <29>;
+			dma-mask = <0x00000000 0xffffffff>;
+		};
+
+		sata: ahci@400e0000 {
+			compatible = "snps,spear-ahci";
+			reg = <0 0x400e0000 0 0x10000>;
+			interrupt-parent = <&icu>;
+			interrupts = <19>;
+			dma-mask = <0x0 0xffffffff>;
+			pinctrl-0 = <&ahci_default>;
+			pinctrl-names = "default";
+			status = "disabled";
+		};
+
+		rtc0: rtc@1fe27800{
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "loongson,ls2k-rtc";
+			reg = <0 0x1fe27800 0 0x100>;
+			interrupt-parent = <&icu>;
+			interrupts = <52>;
+		};
+
+		pwm0: pwm@1fe22000{
+			compatible = "loongson,ls2k-pwm";
+			reg = <0 0x1fe22000 0 0x10>;
+			clocks = <&clks CLK_PWM>;
+			clock-names = "pwm-clk";
+			interrupt-parent = <&icu>;
+			interrupts = <24>;
+			#pwm-cells = <2>;
+			pinctrl-0 = <&pwm0_default>;
+			pinctrl-names = "default";
+			status = "disabled";
+		};
+
+		pwm1: pwm@1fe22010{
+			compatible = "loongson,ls2k-pwm";
+			reg = <0 0x1fe22010 0 0x10>;
+			clocks = <&clks CLK_PWM>;
+			clock-names = "pwm-clk";
+			interrupt-parent = <&icu>;
+			interrupts = <25>;
+			#pwm-cells = <2>;
+			pinctrl-0 = <&pwm1_default>;
+			pinctrl-names = "default";
+			status = "disabled";
+		};
+
+		pwm2: pwm@1fe22020 {
+			compatible = "loongson,ls2k-pwm";
+
+			reg = <0 0x1fe22020 0 0xf>;
+			clocks = <&clks CLK_PWM>;
+			clock-names = "pwm-clk";
+			interrupt-parent = <&icu>;
+			interrupts = <34>;
+
+			#pwm-cells = <2>;
+			pinctrl-0 = <&pwm2_default>;
+			pinctrl-names = "default";
+
+			status = "disabled";
+		};
+
+		pwm3: pwm@1fe22030 {
+			compatible = "loongson,ls2k-pwm";
+
+			reg = <0 0x1fe22030 0 0xf>;
+			clocks = <&clks CLK_PWM>;
+			clock-names = "pwm-clk";
+			interrupt-parent = <&icu>;
+			interrupts = <35>;
+
+			#pwm-cells = <2>;
+			pinctrl-0 = <&pwm3_default>;
+			pinctrl-names = "default";
+
+			status = "disabled";
+		};
+
+		gmac0: ethernet@40040000 {
+			compatible = "snps,dwmac-3.70a", "ls,ls-gmac";
+			reg = <0 0x40040000 0 0x8000>;
+			interrupt-parent = <&icu>;
+			interrupts = <12 13>;
+			interrupt-names = "macirq", "eth_wake_irq";
+			mac-address = [ 64 48 48 48 48 60 ];/* [>mac 64:48:48:48:48:60 <]*/
+			phy-mode = "rgmii";
+			bus_id = <0x0>;
+			phy_addr = <0xffffffff>;
+			dma-mask = <0xffffffff 0xffffffff>;
+			status = "disabled";
+		};
+
+		gmac1: ethernet@40050000 {
+			compatible = "snps,dwmac-3.70a", "ls,ls-gmac";
+			reg = <0 0x40050000 0 0x8000>;
+			pinctrl-0 = <&gmac1_default>;
+			pinctrl-names = "default";
+			interrupt-parent = <&icu>;
+			interrupts = <14 15>;
+			interrupt-names = "macirq", "eth_wake_irq";
+			mac-address = [ 64 48 48 48 48 61 ];/* [>mac 64:48:48:48:48:61 <]*/
+			phy-mode = "rgmii";
+			bus_id = <0x1>;
+			phy_addr = <0xffffffff>;
+			dma-mask = <0xffffffff 0xffffffff>;
+			status = "disabled";
+		};
+
+		/* APB DMA controller nodes:
+		 * apbdma node specify the commom property for dma node.
+		 * the #config-nr must be 2,Used to provide APB sel region
+		 * and APB DMA controler information.
+		 */
+		apbdma: apbdma@1fe00438{
+			compatible = "loongson,ls-apbdma";
+			reg = <0 0x1fe00438 0 0x8>;
+			#config-nr = <2>;
+		};
+		/* DMA node should specify the apbdma-sel property using a
+		 * phandle to the controller followed by number of APB sel
+		 * region(max 9) and number of APB DMA controller(max 4).
+		*/
+
+		dma0: dma@1fe00c00 {
+			compatible = "loongson,ls-apbdma-0";
+			reg = <0 0x1fe00c00 0 0x8>;
+			apbdma-sel = <&apbdma 0x0 0x0>;
+			#dma-cells = <1>;
+			dma-channels = <1>;
+			dma-requests = <1>;
+		};
+
+		dma1: dma@1fe00c10 {
+			compatible = "loongson,ls-apbdma-1";
+			reg = <0 0x1fe00c10 0 0x8>;
+			apbdma-sel = <&apbdma 0x5 0x1>;
+			#dma-cells = <1>;
+			dma-channels = <1>;
+			dma-requests = <1>;
+		};
+
+		dma2: dma@1fe00c20 {
+			compatible = "loongson,ls-apbdma-2";
+			reg = <0 0x1fe00c20 0 0x8>;
+			apbdma-sel = <&apbdma 0x6 0x2>;
+			#dma-cells = <1>;
+			dma-channels = <1>;
+			dma-requests = <1>;
+		};
+
+		dma3: dma@1fe00c30 {
+			compatible = "loongson,ls-apbdma-3";
+			reg = <0 0x1fe00c30 0 0x8>;
+			apbdma-sel = <&apbdma 0x7 0x3>;
+			#dma-cells = <1>;
+			dma-channels = <1>;
+			dma-requests = <1>;
+		};
+
+		dma4: dma@1fe00c40 {
+			compatible = "loongson,ls-apbdma-4";
+			apbdma-sel = <&apbdma 0x0 0x0>;
+			reg = <0 0x1fe00c40 0 0x8>;
+			#dma-cells = <1>;
+			dma-channels = <1>;
+			dma-requests = <1>;
+		};
+
+		mmc: sdio@1fe2c000 {
+			#address-cells = <2>;
+			compatible = "loongson,ls2k_sdio";
+			reg = <0 0x1fe2c000 0 0x1000>;
+			interrupt-parent = <&icu>;
+			interrupts = <31>;
+			interrupt-names = "ls2k_mci_irq";
+			clocks = <&clks CLK_APB>;
+
+			cd-gpio = <&pioA 22 0>;
+			dmas = <&dma1 1>;
+			dma-names = "sdio_rw";
+			dma-mask = <0xffffffff 0xffffffff>;
+
+			status = "disabled";
+		};
+
+		spi0: spi@1fff0220 {
+			compatible = "loongson,ls-spi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0 0x1fff0220 0 0x10>;
+			clocks = <&clks CLK_SPI>;
+			clock-names = "sclk";
+			status = "disabled";
+		};
+
+		nand: nand@1fe26040 {
+			#address-cells = <2>;
+			compatible = "loongson,ls-nand";
+			reg = <0 0x1fe26040 0 0x0
+			       0 0x1fe26000 0 0x20>;
+			interrupt-parent = <&icu>;
+			interrupts = <44>;
+			interrupt-names = "nand_irq";
+
+			dmas = <&dma0 1>;
+			dma-names = "nand_rw";
+			dma-mask = <0xffffffff 0xffffffff>;
+
+			status = "disabled";
+		};
+
+		/* CAN controller nodes:
+		 * If you want to use the "can" function,enable the "can"
+		 * controller by configure general configuration register 0.
+		 */
+		can0: can@1fe20c00{
+			compatible = "nxp,sja1000";
+			reg = <0 0x1fe20c00 0 0xff>;
+			interrupt-parent = <&icu>;
+			interrupts = <16>;
+			pinctrl-0 = <&can0_default>;
+			pinctrl-names = "default";
+
+			status = "disabled";
+		};
+		can1: can@1fe20d00{
+			compatible = "nxp,sja1000";
+			reg = <0 0x1fe20d00 0 0xff>;
+			interrupt-parent = <&icu>;
+			interrupts = <17>;
+			pinctrl-0 = <&can1_default>;
+			pinctrl-names = "default";
+
+			status = "disabled";
+		};
+
+		hda: sound@0x400d0000 {
+			compatible = "loongson,ls2k-audio";
+			reg = <0 0x400d0000 0 0xffff>;
+			interrupt-parent = <&icu>;
+			interrupts = <4>;
+			pinctrl-0 = <&hda_default>;
+			pinctrl-names = "default";
+
+			status = "disabled";
+		};
+
+		tsensor: tsensor@1fe01500 {
+			compatible = "loongson,ls2k-tsensor";
+			reg = <0 0x1fe01500 0 0x30>;
+			id = <0>;
+			interrupt-parent = <&icu>;
+			interrupts = <7>;
+			#thermal-sensor-cells = <1>;
+		};
+
+		thermal-zones {
+			cpu_thermal: cpu-thermal {
+				polling-delay-passive = <1000>;
+				polling-delay = <5000>;
+				thermal-sensors = <&tsensor 0>;
+
+				trips {
+					cpu_alert: cpu-alert {
+						temperature = <60000>;
+						hysteresis = <5000>;
+						type = "active";
+					};
+
+					cpu_crit: cpu-crit {
+						temperature = <125000>;
+						hysteresis = <5000>;
+						type = "critical";
+					};
+				};
+			};
+		};
+
+		wdt:watchdog@1ff6c030{
+			compatible = "loongson,ls2x-wdt";
+			reg = <0 0x1fe27030 0 0xC>;
+			clocks = <&clks CLK_WDT>;
+			clock-names = "wdt-clk";
+			status = "okay";
+		};
+
+		pcie@0 {
+			compatible = "loongson,ls2k1000-pci";
+			#interrupt-cells = <1>;
+			bus-range = <0x1 0x16>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+
+			reg = < 0xfe 0x00000000 0 0x20000000>;
+			ranges = <0x2000000 0x0 0x60000000 0 0x60000000 0x0 0x20000000 /* mem */
+				0x01000000 0 0x00008000 0 0x18008000 0x0 0x8000>;
+
+			pcie0_port0: pci_bridge@9,0 {
+				compatible = "pciclass060400",
+						   "pciclass0604";
+				reg = <0x4800 0x0 0x0 0x0 0x0>;
+				interrupts = <32>;
+				interrupt-parent = <&icu>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &icu 32>;
+			};
+
+			pcie0_port1: pci_bridge@10,0 {
+				compatible = "pciclass060400",
+						   "pciclass0604";
+				reg = <0x5000 0x0 0x0 0x0 0x0>;
+				interrupts = <33>;
+				interrupt-parent = <&icu>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &icu 33>;
+			};
+
+			pcie0_port2: pci_bridge@11,0 {
+				compatible = "pciclass060400",
+						   "pciclass0604";
+				reg = <0x5800 0x0 0x0 0x0 0x0>;
+				interrupts = <34>;
+				interrupt-parent = <&icu>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &icu 34>;
+			};
+
+			pcie_port3: pci_bridge@12,0 {
+				compatible = "pciclass060400",
+						   "pciclass0604";
+				reg = <0x6000 0x0 0x0 0x0 0x0>;
+				interrupts = <35>;
+				interrupt-parent = <&icu>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &icu 35>;
+			};
+
+			pcie1_port0: pci_bridge@13,0 {
+				compatible = "pciclass060400",
+						   "pciclass0604";
+				reg = <0x6800 0x0 0x0 0x0 0x0>;
+				interrupts = <36>;
+				interrupt-parent = <&icu>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &icu 36>;
+			};
+
+			pcie1_port1: pci_bridge@14,0 {
+				compatible = "pciclass060400",
+						   "pciclass0604";
+				reg = <0x7000 0x0 0x0 0x0 0x0>;
+				interrupts = <37>;
+				interrupt-parent = <&icu>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &icu 37>;
+			};
+
+		};
+	};
+};

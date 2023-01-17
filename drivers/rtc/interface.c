@@ -1084,3 +1084,36 @@ int rtc_set_offset(struct rtc_device *rtc, long offset)
 	trace_rtc_set_offset(offset, ret);
 	return ret;
 }
+
+int check_and_init_vaild_rtc_time(struct rtc_device *rtc)
+{
+	int err;
+	struct device *dev;
+	struct rtc_time tm;
+	struct rtc_time default_tm;
+
+	if(!rtc)
+		return -ENXIO;
+
+	dev = &(rtc->dev);
+
+	memset(&tm, 0, sizeof(struct rtc_time));
+	err = rtc_read_time(rtc, &tm);
+	if (err < 0)
+		pr_info("read_time: rtc_time isn't valid and let it be vaild init value\n");
+	else
+		return 0;
+
+	memset(&default_tm, 0, sizeof(struct rtc_time));
+	//2022.05.01
+	default_tm.tm_mday = 1;
+	default_tm.tm_mon = 4;
+	default_tm.tm_year = 122;
+	default_tm.tm_yday = 120;
+
+	err = rtc_set_time(rtc, &default_tm);
+	if (err < 0)
+		pr_info("set_default_time: rtc_time set vaild default time failed!\n");
+	return (err < 0) ? -EIO : 0;
+}
+EXPORT_SYMBOL_GPL(check_and_init_vaild_rtc_time);

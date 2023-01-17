@@ -439,6 +439,12 @@ config MTD_NAND_GPIO
 	  connected to GPIO pins, and commands and data are communicated
 	  via a memory mapped interface.
 
+config MTD_NAND_LS
+	tristate "NAND Flash device on Loongson"
+	depends on (CPU_LOONGSON2K || LOONGARCH) && LS_APBDMAC
+	help
+	  Support for NAND flash on Loongson SouthBridge and SoC.
+
 config MTD_NAND_PLATFORM
 	tristate "Generic NAND controller"
 	depends on HAS_IOMEM

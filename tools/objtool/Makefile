@@ -34,7 +34,7 @@ LIBELF_LIBS  := $(shell pkg-config libelf --libs 2>/dev/null || echo -lelf)
 all: $(OBJTOOL)
 
 INCLUDES := -I$(srctree)/tools/include \
-	    -I$(srctree)/tools/arch/$(HOSTARCH)/include/uapi \
+	    -I$(srctree)/tools/arch/$(SRCARCH)/include/uapi \
 	    -I$(srctree)/tools/arch/$(SRCARCH)/include	\
 	    -I$(srctree)/tools/objtool/arch/$(SRCARCH)/include
 WARNINGS := $(EXTRA_WARNINGS) -Wno-switch-default -Wno-switch-enum -Wno-packed -Wno-nested-externs
@@ -51,6 +51,12 @@ SUBCMD_CHECK := n
 SUBCMD_ORC := n
 
 ifeq ($(SRCARCH),x86)
+	SUBCMD_CHECK := y
+	SUBCMD_ORC := y
+endif
+
+ifeq ($(SRCARCH),loongarch)
+	CFLAGS += -D__loongarch__
 	SUBCMD_CHECK := y
 	SUBCMD_ORC := y
 endif

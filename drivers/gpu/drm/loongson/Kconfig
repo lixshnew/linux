@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config DRM_LOONGSON
+	tristate "DRM Support for loongson's display controller"
+	depends on DRM && PCI
+	depends on MACH_LOONGSON64 || LOONGARCH || MIPS || COMPILE_TEST
+	select OF
+	select CMA if HAVE_DMA_CONTIGUOUS
+	select DMA_CMA if HAVE_DMA_CONTIGUOUS
+	select DRM_KMS_HELPER
+	select DRM_KMS_FB_HELPER
+	select DRM_KMS_CMA_HELPER
+	select DRM_GEM_CMA_HELPER
+	select DRM_TTM
+	select DRM_TTM_HELPER
+	select DRM_VRAM_HELPER
+	select VIDEOMODE_HELPERS
+	select DRM_BRIDGE
+	select DRM_PANEL_BRIDGE
+	default y
+	help
+	  This is a KMS driver for the display controller in the LS7A
+	  bridge chip and LS2K1000/LS2K0500 SoC.
+	  If "M" is selected, the module will be called loongson.
+
+	  If in doubt, say "Y".
+
+config DRM_LOONGSON_PCI_DRIVER
+	bool "Enable pci device driver support for DC in LS7A Bridge"
+	depends on DRM_LOONGSON
+	depends on PCI
+	default y
+	help
+	  Choose this if you want to build CMA-base KMS driver
+	  for the display controller in LS7A1000/LS7A2000.
+
+	  DRM_LSDC_PCI_DRIVER will be defined on when the dc is a pci device
+
+	  If in doubt, say "Y".

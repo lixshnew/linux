@@ -60,11 +60,14 @@ modules.order
 /vmlinux.symvers
 /vmlinux-gdb.py
 /vmlinuz
+/vmlinuz.efi
 /System.map
 /Module.markers
 /modules.builtin.modinfo
 /modules.nsdeps
 
+uImage.*
+uImage
 #
 # RPM spec file (make rpm-pkg)
 #

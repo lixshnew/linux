@@ -423,6 +423,14 @@ config AMLOGIC_THERMAL
 	  This driver can also be built as a module. If so, the module will
 	  be called amlogic_thermal.
 
+config LOONGSON2K_THERMAL
+	tristate "loongson-2k SOC thermal driver"
+	depends on OF && (LOONGSON_2K1000 || LOONGSON_2K500)
+	default m
+	help
+	  Enable this to plug loongson-2k SOC's thermal sensor driver into the Linux
+	  thermal framework.
+
 menu "Intel thermal drivers"
 depends on X86 || X86_INTEL_QUARK || COMPILE_TEST
 source "drivers/thermal/intel/Kconfig"

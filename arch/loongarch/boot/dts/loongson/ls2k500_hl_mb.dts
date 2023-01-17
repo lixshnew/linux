@@ -1,0 +1,340 @@
+#include "loongson2k500.dtsi"
+#include "loongson_panel_param.dtsi"
+
+/ {
+    model = "LS2K500-HuoLong-MB";
+    chosen {
+		stdout-path = "serial2:115200n8";
+		bootargs = "earlycon";
+	};
+
+    // not need memory node, we get memory info from boot params.
+    // memory {
+	// 	name = "memory";
+	// 	device_type = "memory";
+	// 	reg =  <0 0x00200000 0 0x0ee00000	/* low 256MB, 0 ~ 2MB reserved, highest 16MB reserved. */
+	// 			0 0x90000000 0 0x30000000>;	/* hige 256M ~ 1G */
+	// };
+
+    reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0 0x02000000>;
+            alloc-ranges = <0 0x00200000 0 0x09000000>;
+			linux,cma-default;
+		};
+
+        fb_memory: framebuffer@0b000000 {
+            compatible = "shared-dma-pool";
+			no-map;
+			reg = <0 0x0b000000 0 0x04000000>; /* 64M */
+		};
+	};
+};
+
+&soc {
+    lcd_backlight: backlight {
+        compatible = "pwm-backlight";
+        pwms = <&pwm2 0 5000000>;
+
+        brightness-levels = <0 4 8 16 32 64 128 256 511>;
+        default-brightness-level = <8>;
+
+        enable-gpios = <&pioA 32 GPIO_ACTIVE_LOW>;
+        post-pwm-on-delay-ms = <10>;
+        pwm-off-delay-ms = <10>;
+    };
+
+    panel: dvo-connector@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "panel-lvds", "auo,b101ean01";
+		backlight = <&lcd_backlight>;
+
+		/* lcd power on control gpio */
+		// enable-gpios = <&pioA 3 GPIO_ACTIVE_HIGH>;
+		// power-supply = <&vdd_lcd>;
+		width-mm = <223>;
+		height-mm = <125>;
+		label = "b101wx01";
+		data-mapping = "jeida-24";
+
+		panel-timing {
+			clock-frequency = <71000000>;
+			hactive = <1280>;
+			vactive = <800>;
+			hsync-len = <32>;
+			hfront-porch = <8>;
+			hback-porch = <10>;
+			vfront-porch = <3>;
+			vback-porch = <3>;
+			vsync-len = <6>;
+			de-active = <1>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			pixelclk-active = <0>;
+		};
+
+		port@0 {
+			reg = <0>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dvo_connector_in: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&dc_out_rgb0>;
+			};
+		};
+	};
+
+    vga-encoder@0 {
+		compatible = "dumb-vga-dac";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				vga_encoder_in: endpoint {
+					remote-endpoint = <&dc_out_vga>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				vga_encoder_out: endpoint {
+					remote-endpoint = <&vga_port_in>;
+				};
+			};
+		};
+	};
+
+	vga-connector@0 {
+		compatible = "vga-connector";
+
+		ddc-i2c-bus = <&dc1_i2c>;
+
+		port {
+			vga_port_in: endpoint {
+				remote-endpoint = <&vga_encoder_out>;
+			};
+		};
+	};
+};
+
+&uart2 {
+    status = "okay";
+};
+
+&uart0 {
+    status = "disable";
+};
+
+&uart1 {
+    status = "disable";
+};
+
+&uart3 {
+    status = "okay";
+};
+
+&uart4 {
+    status = "disable";
+};
+
+&uart5 {
+    status = "disable";
+};
+
+&uart6 {
+    status = "disable";
+};
+
+&uart7 {
+    pinctrl-0 = <&uart7_G120_pins>;
+    pinctrl-names = "default";
+    status = "okay";
+};
+
+&uart8 {
+    pinctrl-0 = <&uart8_G122_pins>;
+    pinctrl-names = "default";
+    status = "okay";
+};
+
+&uart9 {
+    status = "disable";
+};
+
+&spi0 {
+    status = "okay";
+
+    spi-flash@0 {
+        compatible = "jedec,spi-nor";
+        spi-max-frequency = <25000000>;
+        reg = <0>;
+
+        partitions {
+            compatible = "fixed-partitions";
+            #address-cells = <1>;
+            #size-cells = <1>;
+
+            partition@0 {
+                label = "uboot";
+                reg = <0x0000000 0x000d0000>;
+            };
+
+            partition@0x000d0000 {
+                label = "uboot_env";
+                reg = <0x000d0000 0x00008000>;
+            };
+
+            partition@0x000d8000 {
+                label = "spi_user";
+                reg = <0x000d8000 0x00008000>;
+            };
+
+            partition@0x000e0000 {
+                label = "dtb";
+                reg = <0x000e0000 0x00020000>;
+            };
+        };
+    };
+};
+
+&i2c0 {
+    status = "okay";
+
+    eeprom@57 {
+    	compatible = "atmel,24c32";
+    	reg = <0x57>;
+    	pagesize = <32>;
+    };
+
+    tca6424:gpio@22 {
+        compatible = "ti,tca6424";
+        reg = <0x22>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        interrupt-parent = <&extioiic>;
+        interrupts = <96>;
+    };
+
+    rtc@32 {
+        compatible = "whwave,sd3078";
+        reg = <0x32>;
+    };
+};
+
+&nand {
+    status = "okay";
+    nand-dev-name = "ls-nand";
+
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        partition@0 {
+            label = "kernel";
+            reg = <0x0000000 0x00e00000>;
+        };
+
+        partition@0x01400000 {
+            label = "root";
+            reg = <0x00e00000 0x0>;
+        };
+    };
+};
+
+&pwm0 {
+    status = "okay";
+};
+
+&pwm1 {
+    status = "okay";
+};
+
+&pwm2 {
+    status = "okay";
+};
+
+&pwm3 {
+    status = "okay";
+};
+&can0 {
+    status = "okay";
+};
+
+&can1 {
+    status = "okay";
+};
+
+&rtc0 {
+    status = "okay";
+};
+
+&gmac0 {
+    status = "okay";
+    phy-mode = "rgmii";
+	max-speed = <100>;
+};
+
+&gmac1 {
+    status = "okay";
+    phy-mode = "rgmii";
+	max-speed = <100>;
+};
+
+&sdio0 {
+    status = "okay";
+    cd-gpios = <&tca6424 20 GPIO_ACTIVE_LOW>;
+};
+
+&xhci {
+    status = "okay";
+};
+
+&ahci {
+    status = "okay";
+};
+
+&dc {
+    status = "okay";
+    memory-region = <&fb_memory>;
+
+    ports {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        port@0 {
+            reg = <0>;
+            dc_out_rgb0: endpoint {
+                remote-endpoint = <&dvo_connector_in>;
+            };
+        };
+
+        port@1 {
+            reg = <1>;
+            dc_out_vga: endpoint {
+                remote-endpoint = <&vga_encoder_in>;
+            };
+        };
+    };
+};
+
+&dc1_i2c {
+    status = "okay";
+};
+
+&hda {
+    modelname = "alc269-ls2k500-hl";
+    status = "okay";
+};

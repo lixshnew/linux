@@ -18,6 +18,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
+#include <linux/clk.h>
 
 #include "sja1000.h"
 
@@ -132,8 +133,9 @@ static void sp_populate(struct sja1000_priv *priv,
 	}
 }
 
-static void sp_populate_of(struct sja1000_priv *priv, struct device_node *of)
+static void sp_populate_of(struct platform_device *pdev, struct sja1000_priv *priv, struct device_node *of)
 {
+	struct clk* clk_unit;
 	int err;
 	u32 prop;
 
@@ -157,6 +159,18 @@ static void sp_populate_of(struct sja1000_priv *priv, struct device_node *of)
 	}
 
 	err = of_property_read_u32(of, "nxp,external-clock-frequency", &prop);
+
+	if (err) {
+		clk_unit = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(clk_unit))
+			err = -1;
+		else {
+			err = clk_prepare_enable(clk_unit);
+			if (!err)
+				prop = clk_get_rate(clk_unit);
+		}
+	}
+
 	if (!err)
 		priv->can.clock.freq = prop / 2;
 	else
@@ -266,7 +280,7 @@ static int sp_probe(struct platform_device *pdev)
 	priv->reg_base = addr;
 
 	if (of) {
-		sp_populate_of(priv, of);
+		sp_populate_of(pdev, priv, of);
 
 		if (of_data && of_data->init) {
 			err = of_data->init(priv, of);

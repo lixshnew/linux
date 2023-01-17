@@ -9,8 +9,10 @@
 #include <stdbool.h>
 #include <linux/list.h>
 #include <linux/hashtable.h>
+#include <linux/objtool.h>
 
 #include "elf.h"
+#include "cfi.h"
 
 #define __weak __attribute__((weak))
 

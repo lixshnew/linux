@@ -198,6 +198,8 @@ static int sd3078_probe(struct i2c_client *client,
 
 	sd3078_enable_reg_write(sd3078);
 
+	check_and_init_vaild_rtc_time(sd3078->rtc);
+
 	return 0;
 }
 

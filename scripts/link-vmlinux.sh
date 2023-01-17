@@ -99,7 +99,9 @@ vmlinux_link()
 
 	# The kallsyms linking does not need debug symbols included.
 	if [ "$output" != "${output#.tmp_vmlinux.kallsyms}" ] ; then
+	if [ -z "CONFIG_LOONGARCH" ] ; then
 		strip_debug=-Wl,--strip-debug
+	fi
 	fi
 
 	if [ "${SRCARCH}" != "um" ]; then

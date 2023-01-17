@@ -8,11 +8,25 @@
 
 #include <stdbool.h>
 #include <linux/list.h>
-#include "objtool.h"
+
+#include "builtin.h"
 #include "cfi.h"
+#include "objtool.h"
 
 #ifdef INSN_USE_ORC
 #include <asm/orc_types.h>
+#endif
+
+#ifndef R_LARCH_NONE
+#define R_LARCH_NONE	0
+#endif
+
+#ifndef R_LARCH_ADD32
+#define R_LARCH_ADD32	50
+#endif
+
+#ifndef R_LARCH_SUB32
+#define R_LARCH_SUB32	55
 #endif
 
 enum insn_type {
@@ -89,5 +103,8 @@ unsigned long arch_dest_reloc_offset(int addend);
 const char *arch_nop_insn(int len);
 
 int arch_decode_hint_reg(struct instruction *insn, u8 sp_reg);
+
+void arch_try_find_call(struct list_head *p_orbit_list, struct objtool_file *file,
+			struct symbol *func, struct instruction *insn);
 
 #endif /* _ARCH_H */

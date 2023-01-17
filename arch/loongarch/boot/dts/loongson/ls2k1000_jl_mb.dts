@@ -1,0 +1,322 @@
+#include "loongson2k1000.dtsi"
+#include "loongson_panel_param.dtsi"
+
+/ {
+	model = "LS2K1000-JinLong-MB-V1.3";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+		bootargs = "earlycon";
+	};
+
+	/* not need memory node, we get memory info from boot params. */
+	// memory {
+	// 	name = "memory";
+	// 	device_type = "memory";
+	// 	reg =  <0 0x00200000 0 0x0ee00000
+	// 		0 0x90000000 0 0x70000000>;
+	// };
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		fb_memory: framebuffer {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0 0x0b000000 0 0x04000000>; /* 64M */
+		};
+
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0 0x2000000>;
+			linux,cma-default;
+		};
+	};
+
+	lcd_backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm2 0 5000000>;
+
+		brightness-levels = <0 4 8 16 32 64 128 256 511>;
+		default-brightness-level = <8>;
+
+		enable-gpios = <&pca9555_0 5 GPIO_ACTIVE_LOW>;
+		post-pwm-on-delay-ms = <10>;
+		pwm-off-delay-ms = <10>;
+	};
+
+	panel: dvo-connector@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "panel-lvds", "auo,b101ean01";
+		backlight = <&lcd_backlight>;
+
+		/* lcd power on control gpio */
+		/* enable-gpios = <&pioA 3 GPIO_ACTIVE_HIGH>; */
+		// power-supply = <&vdd_lcd>;
+		width-mm = <223>;
+		height-mm = <125>;
+		label = "b101wx01";
+		data-mapping = "jeida-24";
+
+		status = "okay";
+
+		panel-timing {
+			clock-frequency = <71000000>;
+			hactive = <1280>;
+			vactive = <800>;
+			hsync-len = <32>;
+			hfront-porch = <8>;
+			hback-porch = <10>;
+			vfront-porch = <3>;
+			vback-porch = <3>;
+			vsync-len = <6>;
+			de-active = <1>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			pixelclk-active = <0>;
+		};
+
+		port@0 {
+			reg = <0>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dvo_connector_in: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&dc_out_rgb0>;
+			};
+		};
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	spi-flash@0 {
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <30000000>;
+		reg = <0>; /* CS0 */
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0000000 0x100000>;
+				read-only;
+			};
+		};
+	};
+};
+
+&i2c0 {
+	status = "okay";
+
+	eeprom@57{
+		compatible = "atmel,24c32";
+		reg = <0x57>;
+		pagesize = <32>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+
+	pca9555_0: gpio@20 {
+		compatible = "nxp,pca9555";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&pca9555_1>;
+		interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+
+		lvds-shtdn {
+			gpio-hog;
+			gpios = <4 GPIO_ACTIVE_HIGH>;
+			output-high;
+			line-name = "lvds_shtdn";
+		};
+	};
+
+	pca9555_1: gpio@21 {
+		compatible = "nxp,pca9555";
+		reg = <0x21>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&icu>;
+		interrupts = <60>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		pca9555_0-int {
+			gpio-hog;
+			gpios = <7 GPIO_ACTIVE_HIGH>;
+			input;
+			line-name = "pca9555_0_int";
+		};
+	};
+
+	sil9022acnu@39 {
+		// compatible = "sil,sii9022-cripple";
+		compatible = "sil,sii9022";
+		/* Transmitter Programming Interface (TPI) address: 0x72(8 bit addr) */
+		reg = <0x39>;
+
+		// hpd-gpios = <&pioA 0 GPIO_ACTIVE_HIGH>;
+		/* reset-gpios = <&pioA 39 GPIO_ACTIVE_LOW>; */
+		// interrupt-parent = <&pioA>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				hdmi_encoder_in: endpoint {
+					remote-endpoint = <&dc_out_rgb1>;
+				};
+			};
+		};
+	};
+};
+
+&dc {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	memory-region = <&fb_memory>;
+
+	// output-ports = <&dvo0>;
+
+	dvo0: dvo@0 {
+		compatible = "lsdc,dvo";
+		/* 0 for connector 0 (DVO0) */
+		reg = <0>;
+
+		pinctrl-0 = <&dvo0_default>;
+		pinctrl-names = "default";
+		status="okay";
+	};
+
+	dvo1: dvo@1 {
+		compatible = "lsdc,dvo";
+		/* 1 for connector 1 (DVO1) */
+		reg = <1>;
+
+		pinctrl-0 = <&dvo1_default>;
+		pinctrl-names = "default";
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			dc_out_rgb0: endpoint {
+				remote-endpoint = <&dvo_connector_in>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			dc_out_rgb1: endpoint {
+				remote-endpoint = <&hdmi_encoder_in>;
+			};
+		};
+	};
+};
+
+&pwm0 {
+	status = "okay";
+};
+
+&pwm1 {
+	status = "okay";
+};
+
+&pwm2 {
+	status = "okay";
+};
+
+&pwm3 {
+	status = "okay";
+};
+
+&sata {
+	status = "okay";
+	pinctrl-0 = <&ahci_default>;
+	pinctrl-names = "default";
+	ports-implemented = <0x1>;
+};
+
+&gmac0 {
+	status = "okay";
+};
+
+&gmac1 {
+	status = "okay";
+};
+
+&mmc {
+	status = "okay";
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+};
+
+&uart5 {
+	status = "okay";
+};
+
+&nand {
+	status = "okay";
+
+	number-of-parts = <0x2>;
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "kernel";
+			reg = <0x0000000 0xe00000>;
+		};
+
+		partition@1 {
+			label = "root";
+			reg = <0x00e00000 0x0>;
+		};
+	};
+};
+
+&hda {
+	status = "okay";
+	modelname = "alc269-ls2k1000-jl";
+};
+
+&can0 {
+	//nxp,external-clock-frequency = <125000000>;
+	clocks = <&clks CLK_CAN>;
+	net,tx_queue_len = <1024>;
+	status = "okay";
+};
+
+&can1 {
+	//nxp,external-clock-frequency = <125000000>;
+	clocks = <&clks CLK_CAN>;
+	net,tx_queue_len = <1024>;
+	status = "okay";
+};

@@ -138,6 +138,91 @@ static const struct stmmac_pci_info snps_gmac5_pci_info = {
 	.setup = snps_gmac5_default_data,
 };
 
+static int loongson_default_data(struct pci_dev *pdev,
+				struct plat_stmmacenet_data *plat)
+{
+	struct device_node *np = pdev->dev.of_node;
+
+	/* Set common default data first */
+	common_default_data(plat);
+
+	plat->bus_id = PCI_DEVID(pdev->bus->number, pdev->devfn);
+	plat->phy_addr = -1;
+	plat->interface = PHY_INTERFACE_MODE_RGMII_ID;
+
+	plat->dma_cfg->pbl = 32;
+	plat->dma_cfg->pblx8 = true;
+	/* ls2h,ls2k,ls7a mcast filter register is 256bit. */
+	plat->multicast_filter_bins = 256;
+	/* AXI (TODO) */
+	plat->clk_ref_rate = 125000000;
+	plat->clk_ptp_rate = 125000000;
+
+	if (of_property_read_u32(np, "max-speed", &plat->max_speed))
+		plat->max_speed = -1;
+
+	return 0;
+}
+
+static struct stmmac_pci_info loongson_pci_info = {
+	.setup = loongson_default_data,
+};
+
+static void loongson_gnet_fix_speed(void *priv, unsigned int speed)
+{
+	static bool gnet_speed_flag;
+	struct device *dev = priv;
+	struct net_device *ndev = (struct net_device *)dev_get_drvdata(dev);
+
+	if ((speed == SPEED_1000) && !gnet_speed_flag) {
+		gnet_speed_flag = true;
+		/* reset phy */
+		phy_set_bits(ndev->phydev, 0 /*MII_BMCR*/, 0x200 /*BMCR_ANRESTART*/);
+	} else {
+		gnet_speed_flag = false;
+	}
+}
+
+static int loongson_gnet_data(struct pci_dev *pdev,
+				struct plat_stmmacenet_data *plat)
+{
+	struct device_node *np = pdev->dev.of_node;
+
+	/* Set common default data first */
+	common_default_data(plat);
+
+	plat->bus_id = PCI_DEVID(pdev->bus->number, pdev->devfn);
+
+	/* 7A2000 GNET internal PHY address is fixed */
+	plat->mdio_bus_data->phy_mask = 0xfffffffb;
+	plat->phy_addr = 2;
+
+	/* 7A2000 GNET should use PHY_INTERFACE_MODE_GMII */
+	plat->interface = PHY_INTERFACE_MODE_GMII;
+
+	plat->dma_cfg->pbl = 32;
+	plat->dma_cfg->pblx8 = true;
+	/* 7A2000 mcast filter register is 256bit. */
+	plat->multicast_filter_bins = 256;
+
+	/* GNET 1000M speed need workaround */
+	plat->fix_mac_speed = loongson_gnet_fix_speed;
+	/* used to get netdev pointer address */
+	plat->bsp_priv = (void *)&pdev->dev;
+
+	plat->clk_ref_rate = 125000000;
+	plat->clk_ptp_rate = 125000000;
+
+	if (of_property_read_u32(np, "max-speed", &plat->max_speed))
+		plat->max_speed = -1;
+
+	return 0;
+}
+
+static struct stmmac_pci_info loongson_gnet_pci_info = {
+	.setup = loongson_gnet_data,
+};
+
 /**
  * stmmac_pci_probe
  *
@@ -278,6 +363,8 @@ static const struct pci_device_id stmmac_id_table[] = {
 	{ PCI_DEVICE_DATA(STMMAC, STMMAC, &stmmac_pci_info) },
 	{ PCI_DEVICE_DATA(STMICRO, MAC, &stmmac_pci_info) },
 	{ PCI_DEVICE_DATA(SYNOPSYS, GMAC5_ID, &snps_gmac5_pci_info) },
+	{ PCI_DEVICE_DATA(LOONGSON, GMAC, &loongson_pci_info) },
+	{ PCI_DEVICE_DATA(LOONGSON, GNET, &loongson_gnet_pci_info) },
 	{}
 };
 

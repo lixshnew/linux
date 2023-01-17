@@ -262,6 +262,33 @@ struct reloc *find_reloc_by_dest(const struct elf *elf, struct section *sec, uns
 	return find_reloc_by_dest_range(elf, sec, offset, 1);
 }
 
+void insn_to_reloc_sym_addend(struct section *sec, unsigned long offset,
+			      struct reloc *reloc)
+{
+	if (sec->sym) {
+		reloc->sym = sec->sym;
+		reloc->addend = offset;
+		return;
+	}
+
+	/*
+	 * The Clang assembler strips section symbols, so we have to reference
+	 * the function symbol instead:
+	 */
+	reloc->sym = find_symbol_containing(sec, offset);
+	if (!reloc->sym) {
+		/*
+		 * Hack alert.  This happens when we need to reference the NOP
+		 * pad insn immediately after the function.
+		 */
+		reloc->sym = find_symbol_containing(sec, offset - 1);
+	}
+
+	if (reloc->sym)
+		reloc->addend = offset - reloc->sym->offset;
+}
+
+
 static int read_sections(struct elf *elf)
 {
 	Elf_Scn *s = NULL;
@@ -525,7 +552,7 @@ static int read_rela_reloc(struct section *sec, int i, struct reloc *reloc, unsi
 static int read_relocs(struct elf *elf)
 {
 	struct section *sec;
-	struct reloc *reloc;
+	struct reloc *reloc, *last_reloc;
 	int i;
 	unsigned int symndx;
 	unsigned long nr_reloc, max_reloc = 0, tot_reloc = 0;
@@ -543,6 +570,7 @@ static int read_relocs(struct elf *elf)
 		}
 
 		sec->base->reloc = sec;
+		last_reloc = NULL;
 
 		nr_reloc = 0;
 		for (i = 0; i < sec->sh.sh_size / sec->sh.sh_entsize; i++) {
@@ -572,6 +600,14 @@ static int read_relocs(struct elf *elf)
 				     symndx, sec->name);
 				return -1;
 			}
+
+			if (last_reloc && reloc->offset == last_reloc->offset) {
+				last_reloc->next = reloc;
+				last_reloc = reloc;
+				continue;
+			}
+
+			last_reloc = reloc;
 
 			elf_add_reloc(elf, reloc);
 			nr_reloc++;
@@ -856,7 +892,7 @@ static int elf_rebuild_rel_reloc_section(struct section *sec, int nr)
 
 static int elf_rebuild_rela_reloc_section(struct section *sec, int nr)
 {
-	struct reloc *reloc;
+	struct reloc *reloc, *p;
 	int idx = 0, size;
 	GElf_Rela *relocs;
 
@@ -875,10 +911,12 @@ static int elf_rebuild_rela_reloc_section(struct section *sec, int nr)
 
 	idx = 0;
 	list_for_each_entry(reloc, &sec->reloc_list, list) {
-		relocs[idx].r_offset = reloc->offset;
-		relocs[idx].r_addend = reloc->addend;
-		relocs[idx].r_info = GELF_R_INFO(reloc->sym->idx, reloc->type);
-		idx++;
+		for (p = reloc; p; p = p->next) {
+			relocs[idx].r_offset = p->offset;
+			relocs[idx].r_addend = p->addend;
+			relocs[idx].r_info = GELF_R_INFO(p->sym ? p->sym->idx : 0, p->type);
+			idx++;
+		}
 	}
 
 	return 0;
@@ -886,7 +924,7 @@ static int elf_rebuild_rela_reloc_section(struct section *sec, int nr)
 
 int elf_rebuild_reloc_section(struct elf *elf, struct section *sec)
 {
-	struct reloc *reloc;
+	struct reloc *reloc, *p;
 	int nr;
 
 	sec->changed = true;
@@ -894,7 +932,8 @@ int elf_rebuild_reloc_section(struct elf *elf, struct section *sec)
 
 	nr = 0;
 	list_for_each_entry(reloc, &sec->reloc_list, list)
-		nr++;
+		for (p = reloc; p; p = p->next)
+			nr++;
 
 	switch (sec->sh.sh_type) {
 	case SHT_REL:  return elf_rebuild_rel_reloc_section(sec, nr);

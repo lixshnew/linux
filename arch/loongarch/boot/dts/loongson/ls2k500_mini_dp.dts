@@ -1,0 +1,410 @@
+#include "loongson2k500.dtsi"
+#include "loongson_panel_param.dtsi"
+#include <dt-bindings/input/linux-event-codes.h>
+#include <dt-bindings/pwm/pwm.h>
+
+/ {
+	model = "LS2K500-DEV";
+	chosen {
+		stdout-path = "serial2:115200n8";
+		bootargs = "earlycon";
+	};
+
+	memory {
+		name = "memory";
+		device_type = "memory";
+		reg =  <0 0x00200000 0 0x0ee00000>;	/* low 256MB, 0 ~ 2MB reserved, highest 16MB reserved. */
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		fb_memory: framebuffer {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0 0x0b000000 0 0x02000000>; /* 32M */
+		};
+
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0 0x02000000>;
+			alloc-ranges = <0 0x00200000 0 0x09000000>;
+			linux,cma-default;
+		};
+	};
+
+	pwmleds {
+		compatible = "pwm-leds";
+
+		led1 {
+			label = "led1-pwm";
+			pwms = <&pwm4 0 2550000>;
+			max-brightness = <255>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led2 {
+			label = "led2";
+			gpios = <&pioB 50 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+			default-state = "on";
+		};
+
+		led3 {
+			label = "led3";
+			gpios = <&pioB 52 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led4 {
+			label = "led4";
+			gpios = <&pioB 51 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		enter {
+			label = "enter";
+			linux,code = <28>;
+			gpios = <&pioB 53 GPIO_ACTIVE_LOW>;
+		};
+
+		tab {
+			label = "tab";
+			linux,code = <15>;
+			gpios = <&pioB 54 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&pinmux {
+	// backlight
+	bl_gpio_pins:pinmux_bl_gpio {
+		pinctrl-single,bits = <0x10 0x00000000 0x00070000>;
+	};
+
+	// key1: gpio117  key2: gpio118
+	key_pins: pinmux_key_gpio {
+		pinctrl-single,bits = <0x38 0x00000000 0x07700000>;
+	};
+
+	// touchpad
+	tp_pins: pinmux_tp_gpio {
+		pinctrl-single,bits = <0x00 0x00000000 0x00000007>;
+	};
+
+	spi3_f_kbms_pins: pinmux_spi3_f_kbms {
+		pinctrl-single,bits = <0x10 0x00003333 0x00007777>;
+	};
+
+	spi3_f_kbms_gpio: pinmux_spi3_f_gpio {
+		pinctrl-single,bits = <0x10 0x00000000 0x00007777>;
+	};
+
+	i2c1_f_uart0_pins: pinmux_i2c1_f_uart0 {
+		pinctrl-single,bits = <0x18 0x00003300 0x00007700>;
+	};
+
+	i2c1_f_uart0_gpio: pinmux_i2c1_f_gpio {
+		pinctrl-single,bits = <0x18 0x00000000 0x00007700>;
+	};
+
+	i2c2_f_uart0_pins: pinmux_i2c2_f_uart0 {
+		pinctrl-single,bits = <0x18 0x00330000 0x00770000>;
+	};
+
+	i2c2_f_uart0_gpio: pinmux_i2c2_f_gpio {
+		pinctrl-single,bits = <0x18 0x00000000 0x00770000>;
+	};
+
+	pwm4_f_pci_pins: pinmux_pwm4_f_pci {
+		pinctrl-single,bits = <0x34 0x00000003 0x00000007>;
+	};
+
+	pwm5_f_pci_pins: pinmux_pwm5_f_pci {
+		pinctrl-single,bits = <0x34 0x00000030 0x00000070>;
+	};
+
+	pwm5_f_pci_gpio: pinmux_pwm5_f_gpio {
+		pinctrl-single,bits = <0x34 0x00000000 0x00000070>;
+	};
+
+	spi5_f_pci_pins: pinmux_spi5_f_pci {
+		pinctrl-single,bits = <0x3c 0x44400000 0x77700000
+					0x40 0x00000004 0x00000007>;
+	};
+
+	spi5_f_pci_gpio: pinmux_spi5_f_gpio {
+		pinctrl-single,bits = <0x3c 0x00000000 0x77700000
+					0x40 0x00000000 0x00000007>;
+	};
+};
+
+&soc {
+	lcd_backlight: backlight {
+		compatible = "gpio-backlight";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bl_gpio_pins>;
+		gpios = <&pioA 36 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	panel: dvo-connector@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "panel-lvds", "auo,b101ean01";
+		backlight = <&lcd_backlight>;
+
+		/* lcd power on control gpio */
+		// enable-gpios = <&pioA 3 GPIO_ACTIVE_HIGH>;
+		// power-supply = <&vdd_lcd>;
+		width-mm = <117>;
+		height-mm = <62>;
+		label = "ATK-MD0430R-800x480";
+		data-mapping = "jeida-24";
+
+		panel-timing {
+			clock-frequency = <27000000>;
+			hactive = <800>;
+			vactive = <480>;
+			hsync-len = <40>;
+			hfront-porch = <48>;
+			hback-porch = <40>;
+			vfront-porch = <13>;
+			vback-porch = <32>;
+			vsync-len = <0>;
+			de-active = <1>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			pixelclk-active = <0>;
+		};
+
+		port@0 {
+			reg = <0>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dvo_connector_in: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&dc_out_rgb0>;
+			};
+		};
+	};
+
+	pwm4: pwm@1ff5c040 {
+		compatible = "loongson,ls2k-pwm";
+		reg = <0 0x1ff5c040 0 0xf>;
+		interrupt-parent = <&extioiic>;
+		interrupts = <44>;
+		#pwm-cells = <2>;
+		pinctrl-0 = <&pwm4_f_pci_pins>;
+		pinctrl-names = "default";
+		clocks = <&clocks CLK_PWM>;
+		clock-names = "pwm-clk";
+		status = "okay";
+	};
+
+	pwm5: pwm@1ff5c050 {
+		compatible = "loongson,ls2k-pwm";
+		reg = <0 0x1ff5c050 0 0xf>;
+		interrupt-parent = <&extioiic>;
+		interrupts = <45>;
+		#pwm-cells = <2>;
+		pinctrl-0 = <&pwm5_f_pci_pins>;
+		pinctrl-names = "default";
+		clocks = <&clocks CLK_PWM>;
+		clock-names = "pwm-clk";
+		status = "okay";
+	};
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&uart5 {
+	status = "okay";
+};
+
+&uart7 {
+	pinctrl-0 = <&uart7_G120_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&uart9 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	spi-flash@0 {
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <25000000>;
+		reg = <0>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "uboot";
+				reg = <0x0000000 0x000d0000>;
+			};
+
+			partition@0x000d0000 {
+				label = "uboot_env";
+				reg = <0x000d0000 0x00008000>;
+			};
+
+			partition@0x000d8000 {
+				label = "spi_user";
+				reg = <0x000d8000 0x00008000>;
+			};
+
+			partition@0x000e0000 {
+				label = "dtb";
+				reg = <0x000e0000 0x00020000>;
+			};
+		};
+	};
+};
+
+&spi3 {
+	pinctrl-0 = <&spi3_f_kbms_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&spi5 {
+	pinctrl-0 = <&spi5_f_pci_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+
+	touchpad: gt9147@14 {
+		compatible = "goodix,gt9147";
+		reg = <0x14>;
+		interrupt-parent = <&extioiic>;
+		interrupts = <87>;
+		irq-gpios = <&pioA 0 GPIO_ACTIVE_LOW>;
+		// reset-gpios = <&pioA 37 0>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tp_pins>;
+	};
+};
+
+&i2c1 {
+	pinctrl-0 = <&i2c1_f_uart0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&i2c2 {
+	pinctrl-0 = <&i2c2_f_uart0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&nand {
+	status = "okay";
+	nand-dev-name = "ls-nand";
+
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "kernel";
+			reg = <0x0000000 0x00e00000>;
+		};
+
+		partition@0x01400000 {
+			label = "root";
+			reg = <0x00e00000 0x0>;
+		};
+	};
+};
+
+&pwm0 {
+	status = "okay";
+};
+
+&pwm1 {
+	status = "okay";
+};
+
+&pwm2 {
+	status = "okay";
+};
+
+&pwm3 {
+	status = "okay";
+};
+
+&can0 {
+	status = "okay";
+};
+
+&can1 {
+	status = "okay";
+};
+
+&rtc0 {
+	status = "okay";
+};
+
+&gmac0 {
+	status = "okay";
+	phy-mode = "rgmii";
+	// max-speed = <100>;
+};
+
+&dc {
+	status = "okay";
+	memory-region = <&fb_memory>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			dc_out_rgb0: endpoint {
+				remote-endpoint = <&dvo_connector_in>;
+			};
+		};
+	};
+};

@@ -28,6 +28,7 @@
 #include <linux/platform_data/x86/apple.h>
 #include <linux/pm_runtime.h>
 #include <linux/switchtec.h>
+#include <linux/vgaarb.h>
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include "pci.h"
 
@@ -204,6 +205,158 @@ static void quirk_mmio_always_on(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_ANY_ID, PCI_ANY_ID,
 				PCI_CLASS_BRIDGE_HOST, 8, quirk_mmio_always_on);
+
+/* Loongson-related quirks */
+#define DEV_PCIE_PORT_0	0x7a09
+#define DEV_PCIE_PORT_1	0x7a19
+#define DEV_PCIE_PORT_2	0x7a29
+
+#define DEV_LS2K_APB	0x7a02
+#define DEV_LS7A_CONF	0x7a10
+#define DEV_LS7A_LPC	0x7a0c
+
+/* Fixup wrong class code in PCIe bridges */
+static void loongson_bridge_class_quirk(struct pci_dev *dev)
+{
+	dev->class = PCI_CLASS_BRIDGE_PCI << 8;
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_LOONGSON,
+			DEV_PCIE_PORT_0, loongson_bridge_class_quirk);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_LOONGSON,
+			DEV_PCIE_PORT_1, loongson_bridge_class_quirk);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_LOONGSON,
+			DEV_PCIE_PORT_2, loongson_bridge_class_quirk);
+
+static void loongson_system_bus_quirk(struct pci_dev *pdev)
+{
+	/*
+	 * The address space consumed by these devices is outside the
+	 * resources of the host bridge.
+	 */
+	pdev->mmio_always_on = 1;
+	pdev->non_compliant_bars = 1;
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_LOONGSON,
+			DEV_LS2K_APB, loongson_system_bus_quirk);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_LOONGSON,
+			DEV_LS7A_CONF, loongson_system_bus_quirk);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_LOONGSON,
+			DEV_LS7A_LPC, loongson_system_bus_quirk);
+
+static void loongson_pci_pin_quirk(struct pci_dev *pdev)
+{
+	pdev->pin = 1 + (PCI_FUNC(pdev->devfn) & 3);
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LOONGSON,
+			DEV_PCIE_PORT_0, loongson_pci_pin_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LOONGSON,
+			DEV_PCIE_PORT_1, loongson_pci_pin_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LOONGSON,
+			DEV_PCIE_PORT_2, loongson_pci_pin_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LOONGSON,
+			PCI_DEVICE_ID_LOONGSON_AHCI, loongson_pci_pin_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LOONGSON,
+			PCI_DEVICE_ID_LOONGSON_EHCI, loongson_pci_pin_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LOONGSON,
+			PCI_DEVICE_ID_LOONGSON_OHCI, loongson_pci_pin_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LOONGSON,
+			PCI_DEVICE_ID_LOONGSON_DC1, loongson_pci_pin_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LOONGSON,
+			PCI_DEVICE_ID_LOONGSON_DC2, loongson_pci_pin_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LOONGSON,
+			PCI_DEVICE_ID_LOONGSON_GPU, loongson_pci_pin_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LOONGSON,
+			PCI_DEVICE_ID_LOONGSON_GMAC, loongson_pci_pin_quirk);
+
+static void loongson_ohci_quirk(struct pci_dev *dev)
+{
+	if (dev->revision == 0x2)
+		dev->resource[0].start += 0x1000;
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LOONGSON,
+			PCI_DEVICE_ID_LOONGSON_OHCI, loongson_ohci_quirk);
+
+static void loongson_mrrs_quirk(struct pci_dev *dev)
+{
+	struct pci_bus *bus = dev->bus;
+	struct pci_dev *bridge;
+	static const struct pci_device_id bridge_devids[] = {
+		{ PCI_VDEVICE(LOONGSON, DEV_PCIE_PORT_0) },
+		{ PCI_VDEVICE(LOONGSON, DEV_PCIE_PORT_1) },
+		{ PCI_VDEVICE(LOONGSON, DEV_PCIE_PORT_2) },
+		{ 0, },
+	};
+
+	/* look for the matching bridge */
+	while (!pci_is_root_bus(bus)) {
+		bridge = bus->self;
+		bus = bus->parent;
+		/*
+		 * Some Loongson PCIe ports have a h/w limitation of
+		 * 256 bytes maximum read request size. They can't handle
+		 * anything larger than this. So force this limit on
+		 * any devices attached under these ports.
+		 */
+		if (bridge && pci_match_id(bridge_devids, bridge)) {
+			dev->dev_flags |= PCI_DEV_FLAGS_NO_INCREASE_MRRS;
+
+			if (pcie_bus_config == PCIE_BUS_DEFAULT ||
+			    pcie_bus_config == PCIE_BUS_TUNE_OFF)
+				break;
+
+			if (pcie_get_readrq(dev) > 256) {
+				pci_info(dev, "limiting MRRS to 256\n");
+				pcie_set_readrq(dev, 256);
+			}
+			break;
+		}
+	}
+}
+DECLARE_PCI_FIXUP_ENABLE(PCI_ANY_ID, PCI_ANY_ID, loongson_mrrs_quirk);
+
+static void aspeed_fixup_vgaarb(struct pci_dev *pdev)
+{
+	struct pci_dev *bridge;
+	struct pci_bus *bus;
+	struct pci_dev *vdevp = NULL;
+	u16 config;
+
+	bus = pdev->bus;
+	bridge = bus->self;
+
+	/* Is VGA routed to us? */
+	if (bridge && (pci_is_bridge(bridge))) {
+		pci_read_config_word(bridge, PCI_BRIDGE_CONTROL, &config);
+
+		/* Yes, this bridge is PCI bridge-to-bridge spec compliant,
+		 *  just return!
+		 */
+		if (config & PCI_BRIDGE_CTL_VGA)
+			return;
+
+		dev_warn(&pdev->dev, "VGA bridge control is not enabled\n");
+	}
+
+	/* Just return if the system already have a default device */
+	if (vga_default_device())
+		return;
+
+	/* No default vga device */
+	while ((vdevp = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, vdevp))) {
+		if (vdevp->vendor != 0x1a03) {
+			/* Have other vga devcie in the system, do nothing */
+			dev_info(&pdev->dev, "Another boot vga device: 0x%x:0x%x\n",
+				vdevp->vendor, vdevp->device);
+			return;
+		}
+	}
+
+	vga_set_default_device(pdev);
+
+	dev_info(&pdev->dev, "Boot vga device set as 0x%x:0x%x\n",
+			pdev->vendor, pdev->device);
+}
+DECLARE_PCI_FIXUP_CLASS_FINAL(0x1a03, 0x2000, PCI_CLASS_DISPLAY_VGA, 8, aspeed_fixup_vgaarb);
 
 /*
  * The Mellanox Tavor device gives false positive parity errors.  Mark this

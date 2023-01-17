@@ -920,6 +920,10 @@ retry_get_irq_gpio:
 	}
 
 	ts->gpiod_int = gpiod;
+#ifdef CONFIG_MACH_LOONGSON64
+	/* gpiod_to_irq用于gpio中断使能，修正龙芯平台的gpio中断 */
+	gpiod_to_irq(ts->gpiod_int);
+#endif
 
 	/* Get the reset line GPIO pin number */
 	gpiod = devm_gpiod_get_optional(dev, GOODIX_GPIO_RST_NAME, GPIOD_IN);
